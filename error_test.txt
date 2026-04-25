@@ -1,0 +1,13 @@
+
+
+
+ADD Alice F 1 90 85 88 92 87 89 91 86 84
+ADD Alice F 1 90 85 88 92 87 89 91 86 84
+START
+ADD Bob M 2 85 90 82 88 91 87 85 89 83
+UPDATE NonExistent 0 50
+QUERY NonExistent
+END
+
+
+
