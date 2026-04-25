@@ -106,18 +106,8 @@ public:
             return;
         }
         
-        if (started) {
-            // Remove from ranking
-            ranking.erase(&it->second);
-        }
-        
-        // Update score
+        // Update score but don't modify ranking until FLUSH
         it->second.set_score(code, score);
-        
-        if (started) {
-            // Add back to ranking
-            ranking.insert(&it->second);
-        }
     }
     
     void flush_ranking() {
