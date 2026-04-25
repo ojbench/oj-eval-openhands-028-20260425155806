@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <set>
 #include <algorithm>
-#include <cmath>
 
 using namespace std;
 
@@ -13,46 +12,59 @@ struct Student {
     string name;
     char gender;
     int class_num;
-    vector<int> scores;
+    int scores[9];
+    int avg_score;
+    bool dirty;  // flag to indicate if scores need recalculation
     
-    Student() : scores(9, 0) {}
+    Student() : scores{0}, avg_score(0), dirty(false) {}
     
-    Student(const string& n, char g, int c, const vector<int>& s) 
-        : name(n), gender(g), class_num(c), scores(s) {}
-    
-    int get_avg_score() const {
+    void calculate_avg() {
         int sum = 0;
-        for (int score : scores) {
-            sum += score;
+        for (int i = 0; i < 9; i++) {
+            sum += scores[i];
         }
-        return sum / scores.size();  // floor division
+        avg_score = sum / 9;
+        dirty = false;
     }
     
-    // Comparison operator for ranking
-    bool operator<(const Student& other) const {
-        int my_avg = get_avg_score();
-        int other_avg = other.get_avg_score();
+    void set_score(int code, int score) {
+        scores[code] = score;
+        dirty = true;
+    }
+    
+    int get_avg_score() const {
+        if (dirty) {
+            const_cast<Student*>(this)->calculate_avg();
+        }
+        return avg_score;
+    }
+};
+
+struct StudentComparator {
+    bool operator()(const Student* a, const Student* b) const {
+        int avg_a = a->get_avg_score();
+        int avg_b = b->get_avg_score();
         
-        if (my_avg != other_avg) {
-            return my_avg > other_avg;  // Higher average score first
+        if (avg_a != avg_b) {
+            return avg_a > avg_b;  // Higher average score first
         }
         
         // Compare scores from 0 to 8
         for (int i = 0; i < 9; i++) {
-            if (scores[i] != other.scores[i]) {
-                return scores[i] > other.scores[i];
+            if (a->scores[i] != b->scores[i]) {
+                return a->scores[i] > b->scores[i];
             }
         }
         
         // If still tied, compare name lexicographically
-        return name < other.name;
+        return a->name < b->name;
     }
 };
 
 class StudentManager {
 private:
     unordered_map<string, Student> students;
-    set<Student> ranking;
+    set<Student*, StudentComparator> ranking;
     bool started = false;
     
 public:
@@ -67,15 +79,23 @@ public:
             return;
         }
         
-        Student student(name, gender, class_num, scores);
+        Student student;
+        student.name = name;
+        student.gender = gender;
+        student.class_num = class_num;
+        for (int i = 0; i < 9; i++) {
+            student.scores[i] = scores[i];
+        }
+        student.calculate_avg();
+        
         students[name] = student;
     }
     
     void start_statistics() {
         started = true;
         // Build initial ranking
-        for (const auto& pair : students) {
-            ranking.insert(pair.second);
+        for (auto& pair : students) {
+            ranking.insert(&pair.second);
         }
     }
     
@@ -86,37 +106,37 @@ public:
             return;
         }
         
-        // Remove from ranking if started
         if (started) {
-            auto rank_it = ranking.find(it->second);
-            if (rank_it != ranking.end()) {
-                ranking.erase(rank_it);
-            }
+            // Remove from ranking
+            ranking.erase(&it->second);
         }
         
         // Update score
-        it->second.scores[code] = score;
+        it->second.set_score(code, score);
         
-        // Add back to ranking if started
         if (started) {
-            ranking.insert(it->second);
+            // Add back to ranking
+            ranking.insert(&it->second);
         }
     }
     
     void flush_ranking() {
         // Rebuild ranking from current student data
         ranking.clear();
-        for (const auto& pair : students) {
-            ranking.insert(pair.second);
+        for (auto& pair : students) {
+            if (pair.second.dirty) {
+                pair.second.calculate_avg();
+            }
+            ranking.insert(&pair.second);
         }
     }
     
     void print_list() const {
         int rank = 1;
-        for (const Student& student : ranking) {
-            cout << rank << " " << student.name << " " 
-                 << (student.gender == 'M' ? "male" : "female") << " "
-                 << student.class_num << " " << student.get_avg_score() << "\n";
+        for (const Student* student : ranking) {
+            cout << rank << " " << student->name << " " 
+                 << (student->gender == 'M' ? "male" : "female") << " "
+                 << student->class_num << " " << student->get_avg_score() << "\n";
             rank++;
         }
     }
@@ -135,8 +155,8 @@ public:
         
         // Find rank in the set
         int rank = 1;
-        for (const Student& student : ranking) {
-            if (student.name == name) {
+        for (const Student* student : ranking) {
+            if (student->name == name) {
                 cout << "STUDENT " << name << " NOW AT RANKING " << rank << "\n";
                 return;
             }
