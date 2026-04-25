@@ -65,7 +65,20 @@ class StudentManager {
 private:
     unordered_map<string, Student> students;
     set<Student*, StudentComparator> ranking;
+    unordered_map<string, int> cached_ranks;
     bool started = false;
+    bool ranks_dirty = false;
+    
+    void update_all_ranks() {
+        if (!ranks_dirty) return;
+        
+        int rank = 1;
+        for (const Student* student : ranking) {
+            cached_ranks[student->name] = rank;
+            rank++;
+        }
+        ranks_dirty = false;
+    }
     
 public:
     void add_student(const string& name, char gender, int class_num, const vector<int>& scores) {
@@ -97,6 +110,7 @@ public:
         for (auto& pair : students) {
             ranking.insert(&pair.second);
         }
+        ranks_dirty = true;
     }
     
     void update_score(const string& name, int code, int score) {
@@ -119,6 +133,7 @@ public:
             }
             ranking.insert(&pair.second);
         }
+        ranks_dirty = true;
     }
     
     void print_list() const {
@@ -143,14 +158,11 @@ public:
             return;
         }
         
-        // Find rank in the set
-        int rank = 1;
-        for (const Student* student : ranking) {
-            if (student->name == name) {
-                cout << "STUDENT " << name << " NOW AT RANKING " << rank << "\n";
-                return;
-            }
-            rank++;
+        // Update ranks if needed and use cached value
+        const_cast<StudentManager*>(this)->update_all_ranks();
+        auto rank_it = cached_ranks.find(name);
+        if (rank_it != cached_ranks.end()) {
+            cout << "STUDENT " << name << " NOW AT RANKING " << rank_it->second << "\n";
         }
     }
     
