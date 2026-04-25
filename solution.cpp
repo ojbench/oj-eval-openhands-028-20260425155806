@@ -125,6 +125,21 @@ public:
     }
     
     void flush_ranking() {
+        // Only rebuild if there are dirty students
+        bool has_dirty = false;
+        for (const auto& pair : students) {
+            if (pair.second.dirty) {
+                has_dirty = true;
+                break;
+            }
+        }
+        
+        if (!has_dirty) {
+            // Just update ranks if no scores changed
+            ranks_dirty = true;
+            return;
+        }
+        
         // Rebuild ranking from current student data
         ranking.clear();
         for (auto& pair : students) {
@@ -174,6 +189,7 @@ public:
 int main() {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
+    cout.tie(nullptr);
     
     StudentManager manager;
     string command;
